@@ -1,0 +1,47 @@
+version: '3'
+
+networks:
+  python_docker:
+
+services:
+  python:
+    build:
+      context: .
+      dockerfile: ./docker/python/python.dockerfile
+      args:
+        - USER_ID=1000
+        - GROUP_ID=1000
+    command: bash -c "gunicorn django_settings_folder.wsgi:application --reload --config docker/gunicorn/gunicorn.conf.py --chdir /home/user/code"
+    volumes:
+      - .:/home/python_docker/code
+    ports:
+      - "8000:8000"
+    depends_on: 
+      - mysql 
+      - postgres
+  postgres:
+    image: postgres:10.4
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=password
+  mysql:
+    image: mysql:5.7
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_USER: username      
+      MYSQL_DATABASE: db_name
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    networks:
+      - python_docker
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+  
+
