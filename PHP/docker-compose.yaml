@@ -1,0 +1,97 @@
+version: '3'
+
+networks:
+  php_docker:
+
+services:
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: nginx.dockerfile
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html:delegated
+    depends_on:
+      - php
+    networks:
+      - php_docker
+  mysql:
+    image: mysql:5.7
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_USER: username      
+      MYSQL_DATABASE: db_name
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    networks:
+      - php_docker
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+  postgres:
+    image: postgres:10.4
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=password
+  php:
+    build:
+      context: ./docker/php
+      dockerfile: php.dockerfile
+      args:
+        - USER_ID=1000
+        - GROUP_ID=1000
+    volumes:
+      - .:/var/www/html:delegated
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    ports:
+      - "9000:9000"
+    networks:
+      - php_docker
+  
+  artisan:
+    build:
+      context: ./docker/php
+      dockerfile: php.dockerfile
+      args:
+        - USER_ID=1000
+        - GROUP_ID=1000
+    volumes:
+      - .:/var/www/html:delegated
+    working_dir: /var/www/html
+    user: php_docker
+    entrypoint: ['php', '/var/www/html/artisan']
+    networks:
+      - php_docker
+  
+  composer:
+    build:
+      context: ./docker/composer
+      dockerfile: composer.dockerfile
+      args:       
+        - GROUP_ID=1000
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - php
+    user: php_docker
+    networks:
+      - php_docker
+    entrypoint: ['composer']
+  phpmyadmin:
+    image: phpmyadmin
+    ports:
+      - 8080:80
+    environment:
+      - PMA_HOST=mysql
+    networks:
+      - php_docker
+    depends_on:
+      - mysql
